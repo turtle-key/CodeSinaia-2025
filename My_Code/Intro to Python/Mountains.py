@@ -5,19 +5,21 @@ import matplotlib.pyplot as plt
 df = pd.read_csv("mountains_db.tsv", sep='\t', header=None)
 df_valid = df.dropna(subset=[1])
 df_valid[1] = df_valid[1].astype(int)
+
 #exercise 1
 print(f"Sunt {len(df[3].unique())} tari in baza de date")
-
 array = df[1].dropna().astype(int).tolist()
 
 #exercise 2
 missing_count = df[1].isna().sum()
 print(f"Pentru {missing_count} munti lipseste informatia de alittudine")
+
 #exercise 3
 print(f"Min mountain: {min(array)}; Max mountain: {max(array)}")
 print(f"Mean of the sequence: {statistics.mean(array)}")
 print(f"Median of the sequence: {statistics.median(array)}")
 print(f"Standard Deviation of the sequence: {statistics.stdev(array)}")
+
 #exercise 4
 n = int(input("Enter the N value"))
 print(f"The Top{n} highest mountains in the world are:\n")
@@ -59,7 +61,6 @@ plt.show()
 grouped_altitudes = df_valid.groupby(2)[1].apply(list)
 countries = grouped_altitudes.index.tolist()
 data = grouped_altitudes.tolist()
-
 plt.figure(figsize=(max(10, len(countries) * 0.5), 6))
 plt.boxplot(data, labels=countries, whis=[0, 100])
 plt.xticks(rotation=90)
