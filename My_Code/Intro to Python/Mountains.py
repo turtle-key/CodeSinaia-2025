@@ -69,3 +69,23 @@ plt.ylabel("Altitude (m)")
 plt.title("Min, Median, Max, and Distribution of Mountain Altitudes per Country")
 plt.tight_layout()
 plt.show()
+
+df_valid = df_valid.rename(columns={0: 'Mountain', 1: 'Altitude', 2: 'Country', 3: 'Country Code'})
+
+#extra exercise
+df2 = pd.read_csv("countries_db.tsv", sep='\t', header=None)
+df2 = df2.rename(columns={0: 'Country Code', 1: 'Continent'})
+result = pd.merge(df_valid, df2, on='Country Code')
+print(result)
+grouped_altitudes = result.groupby("Continent")["Altitude"].apply(list)
+continents = grouped_altitudes.index.tolist()
+data = grouped_altitudes.tolist()
+plt.figure(figsize=(max(10, len(countries) * 0.5), 6))
+plt.boxplot(data, labels=continents, whis=[0, 100])
+plt.xticks(rotation=90)
+plt.xlabel("Continent")
+plt.ylabel("Altitude (m)")
+plt.title("Min, Median, Max, and Distribution of Mountain Altitudes per Continent")
+plt.tight_layout()
+plt.show()
+
