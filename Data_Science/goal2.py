@@ -1,59 +1,156 @@
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import random
+import time
 
 threshold = 0.05
 
-# Returns 1 for positive pion (211), -1 for negative pion (-211), 0 otherwise
+# Particle type checker
 def check_type(pdg_code):
-    pass  # TODO: Implement this function
+    if abs(pdg_code) == 211:
+        return 1 if pdg_code > 0 else -1
+    return 0
 
-# Returns the Poisson uncertainty for a given average
+# Uncertainty calculations
 def poisson_distribution(average):
-    pass  # TODO: Implement this function
+    return math.sqrt(average)
 
-# Returns the absolute difference between two numbers
 def difference(no_1, no_2):
-    pass  # TODO: Implement this function
+    return abs(no_1 - no_2)
 
-# Returns the combined uncertainty for two numbers
 def combined_uncertainty(no_1, no_2):
-    pass  # TODO: Implement this function
+    return math.sqrt(no_1 + no_2)
 
-# Returns the significance of the difference
 def significance(no_1, no_2, comb_uncertainty):
-    pass  # TODO: Implement this function
+    return abs(no_1 - no_2) / comb_uncertainty if comb_uncertainty != 0 else 0
 
-# TODO: Open the input file, read the first line to get event_id and num_particles,
-#       then read the rest of the lines into lines_list as lists of strings.
-#       Handle FileNotFoundError and IOError with appropriate messages--> handle file errors.
+# Subsampling helper: pick 3 from every 10 batches
+def subsample_batches(data, group_size=10, sample_size=3):
+    sampled = []
+    for i in range(0, len(data), group_size):
+        group = data[i:i+group_size]
+        if not group:
+            continue
+        indices = sorted(random.sample(range(len(group)), min(sample_size, len(group))))
+        sampled.extend([group[j] for j in indices])
+    return sampled
 
-# TODO: Loop through each particle in lines_list, convert values to float,
-#       use check_type to count positive and negative pions per event.
+file_path = "/Users/mihai-edi/Projects/Code Sinaia/Data_Science/Dataset/output-Set1.txt"
+batch_size = 1000
 
-# TODO: You may use batching (e.g., sum per 1000 events) or sampling (store per-event counts).
-#       Batching is recommended for large files to reduce memory usage.
-#       Sampling (storing per-event counts) is useful if you want to analyze or plot per-event data.
+batch_event_numbers = []
+positive_pion_batches = []
+negative_pion_batches = []
 
-# TODO: After processing, print the total number of positive and negative pions,
-#       their averages per event, Poisson uncertainties, the difference, combined uncertainty, and significance.
-#       Print whether the significance is above the threshold.
+total_positive = 0
+total_negative = 0
+total_events = 0
+batch_pos = 0
+batch_neg = 0
 
-# TODO: Plot a single graph showing the number of positive and negative pions in each batch of 1000 events.
-#       X-axis: event number (0, 1000, 2000, ...)
-#       Y-axis: number of pions in each batch of 1000 events
-#       The plot should have two lines: one for positive pions, one for negative pions.
+# ------------------------- Batching -------------------------
+start_batch = time.time()
 
-# Example expected output (printed):
-# In 500000 total events, we had 9238697 positive particles and 9225784 negative particles.
-# there s an average of  18.477394 particles(positive pions)
-# there s an average of  18.451568 anti-particles(negative pions)
-# the poisson distribution for the positive pions is 3039.52 ...
-# the poisson distribution for the negative(antiparticle) pions is 3037.39 ...
-# there are  12913  more particles then antiparticles
-# the combined uncertainty of the total amount of particles and antiparticles is  4297.03 ...
-# the significance is  3.00 ...
-# the significance is very large compared to the threshold
+try:
+    with open(file_path, "r") as infile:
+        while True:
+            first_line = infile.readline()
+            if not first_line:
+                break
+            try:
+                event_id, num_particles = map(int, first_line.strip().split())
+            except ValueError:
+                continue  
 
-# Example expected plot:
-# A line plot with two lines (positive and negative pions per 1000 events), x-axis labeled "Event number", y-axis labeled "Number of pions in 1000 events".
+            pos = 0
+            neg = 0
+            for _ in range(num_particles):
+                line = infile.readline()
+                try:
+                    pdg_code = int(line.strip().split()[3])
+                    t = check_type(pdg_code)
+                    if t == 1:
+                        pos += 1
+                    elif t == -1:
+                        neg += 1
+                except (IndexError, ValueError):
+                    continue  
+
+            total_positive += pos
+            total_negative += neg
+            total_events += 1
+
+            batch_pos += pos
+            batch_neg += neg
+
+            if total_events % batch_size == 0:
+                batch_event_numbers.append(total_events)
+                positive_pion_batches.append(batch_pos)
+                negative_pion_batches.append(batch_neg)
+                batch_pos = 0
+                batch_neg = 0
+
+except FileNotFoundError:
+    print(f"File not found: {file_path}")
+    exit()
+except IOError:
+    print("Error reading the file.")
+    exit()
+
+end_batch = time.time()
+batch_duration = end_batch - start_batch
+
+# ------------------------- Subsampling -------------------------
+start_subsample = time.time()
+
+subsampled_x = subsample_batches(batch_event_numbers)
+subsampled_pos = subsample_batches(positive_pion_batches)
+subsampled_neg = subsample_batches(negative_pion_batches)
+
+end_subsample = time.time()
+subsample_duration = end_subsample - start_subsample
+
+# ------------------------- Plot: Pions vs Event -------------------------
+plt.figure(figsize=(12, 6))
+plt.plot(batch_event_numbers, positive_pion_batches,
+         label="Positive pions (per 1000 events)", color="blue", linewidth=1)
+plt.plot(batch_event_numbers, negative_pion_batches,
+         label="Negative pions (per 1000 events)", color="red", linewidth=1)
+
+plt.plot(subsampled_x, subsampled_pos,
+         label="Subsampled Positive Pions", color="green")
+plt.plot(subsampled_x, subsampled_neg,
+         label="Subsampled Negative Pions", color="gold")
+
+plt.axhline(0, color="black", linewidth=0.8)
+plt.xlabel("Event number")
+plt.ylabel("Pion count per batch")
+plt.title("Pions per Batch (Positive vs Negative)")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.legend()
+plt.tight_layout()
+
+# Auto scale Y if needed
+if positive_pion_batches and negative_pion_batches:
+    ymin = min(positive_pion_batches + negative_pion_batches + subsampled_pos + subsampled_neg)
+    ymax = max(positive_pion_batches + negative_pion_batches + subsampled_pos + subsampled_neg)
+    plt.ylim(ymin, ymax)
+
+plt.show()
+
+# ------------------------- Plot: Runtime Comparison -------------------------
+plt.figure(figsize=(6, 5))
+methods = ['Batching', 'Subsampling']
+times = [batch_duration, subsample_duration]
+colors = ['skyblue', 'orange']
+
+plt.bar(methods, times, color=colors)
+plt.ylabel("Time (seconds)")
+plt.title("Runtime Comparison: Batching vs Subsampling")
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+for i, v in enumerate(times):
+    plt.text(i, v + 0.01, f"{v:.4f}s", ha='center', va='bottom', fontsize=10)
+
+plt.tight_layout()
+plt.show()
